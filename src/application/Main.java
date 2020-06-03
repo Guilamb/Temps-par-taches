@@ -1,6 +1,9 @@
 package application;
 	
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +21,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -56,9 +60,9 @@ import javafx.scene.transform.Translate;
 /* TODO LIST 
  * pb de placement des labels
  	
- 	-mockups Balsamiq à faire
+ 	-mockups Balsamiq à finir
  	-compte rendue en pdf
- 	-push sur le gitlab de l'iut
+ 	-push sur le gitlab de l'iut 
  	-video de presentation
  	
  	
@@ -66,7 +70,7 @@ import javafx.scene.transform.Translate;
  	-pb dans String miseEnForme() : avec le texte pkmn, il marche plus
  	-pb dans le onChange quand on supprime task
  	-suppression de subtask
- 	-Serialization
+ 	-recharger la Serialization
  	-Remplir la popup aide
  	-horloge / animation à configurer, il faut sauvegarder les temps
  	-probleme de numerotation automatique des sous taches
@@ -86,15 +90,18 @@ public class Main extends Application {
     }
 	
 	private static final int NB_CHAR_MAX_TEXT_AREA = 20;
-	private Chrono chrono = new Chrono();
-	private Timer chronometre = new Timer();
 	private Task selectedTask = new Task();
+	private Chrono chrono = new Chrono(selectedTask);
+	private Timer chronometre = new Timer();
+	private Line minuteTick = new Line(); 
 	private boolean sublistChange = false; 		//permet de ne pas compter le depart de sublist vers list mais juste quand on clique sur sublist pas quand on change de liste
+	private List<Task> taskList = new ArrayList<Task>();
+	
 	
 	public void start(Stage primaryStage) {
 		try {
 			
-			List<Task> taskList = new ArrayList<Task>();			
+			System.out.println("taskList : "+taskList.toString());		
 			
 			
 		
@@ -149,11 +156,47 @@ public class Main extends Application {
 			ListView<String> list = new ListView<String>(listElement);
 			ListView<String> subList = new ListView<String>();
 			
-			
+			System.out.println("taskList : "+taskList.toString());
 			
 			RotateTransition  rotationMinutes = new RotateTransition();
 			RotateTransition  rotationHours = new RotateTransition();
 
+			
+			
+			
+			primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+
+				@Override
+				public void handle(WindowEvent arg0) {
+					try {
+						FileOutputStream fileOut = new FileOutputStream("saves/"+"sauvegarde");
+						System.out.println("saved !");
+						ObjectOutputStream out = new ObjectOutputStream(fileOut);
+						out.writeObject(taskList);
+						out.close();
+						fileOut.close();
+						System.out.println("taskList : "+taskList.toString());
+						
+					}catch (IOException i){
+						 i.printStackTrace();
+					}
+					
+				}
+			});
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
 			
 			
 			
@@ -168,14 +211,22 @@ public class Main extends Application {
 				public void handle(ActionEvent arg0) {
 
 					if(chrono.isOn()) {
-						chrono.setOff();
+						chrono.setOff(); //va eteindre le chrono et enregistrer le temps de fonctionnement.
 						rotationMinutes.stop();
 						rotationHours.stop();
+						
+						
+						
+						System.out.println(selectedTask.getDureeEnMinutes()+" min");
+						//si il ya un timer ON, on enregistre le temps et on le met off
 						//TODO sauvegarder le temps int nbMinutes de la TASK
 					}
 					
 					else if(!chrono.isOn()) {
-						chrono = new Chrono();							// on crée un nv chrono pour eviter d'avoir un pb quand on schedule
+						//on prends la task selectionnée
+						//on met son timer
+						selectedTask.setEnCours(true);
+						chrono = new Chrono(selectedTask);							// on crée un nv chrono pour eviter d'avoir un pb quand on schedule
 						chrono.addTimer(timerNumeric);
 						chrono.setOn(); 								// on allume le nouveau chrono
 						chronometre.schedule(chrono, 0,1000/*36000*/);	//on programme la TimerTask chrono, avec un delais de 0 millisecondes et pour une durée de 1000 milisecondes  
@@ -204,7 +255,7 @@ public class Main extends Application {
 						list.getItems().add(nomTaskInput.getText());
 						taskListNames.add(nomTaskInput.getText());
 						addToParentsList(taskList, parentsList);
-
+						System.out.println("taskList : "+taskList.toString());
 					}
 					System.out.println();
 					
@@ -303,6 +354,8 @@ public class Main extends Application {
 						taskList.remove(emplacementElementSupprimer); //vu que c'est le bordel l.427, une erreur est causé ici
 						listElement.remove(emplacementElementSupprimer);	
 						taskListNames.remove(emplacementElementSupprimer);//la taille de taskListNames passe de 1 à 2 en bas alors qu'il n'y a que 1 element dedans
+						
+						System.out.println("taskList : "+taskList.toString());
 						System.out.println(taskListNames.size());
 					}else {
 							System.out.println(taskListNames);
@@ -335,10 +388,23 @@ public class Main extends Application {
 			
 			MenuItem close = new MenuItem("Close");
 			exit.getItems().addAll(close);
-			close.addEventHandler(ActionEvent.ACTION, new EventHandler<ActionEvent>() {
+			close.addEventHandler(ActionEvent.ACTION , new EventHandler<ActionEvent>() {
 				
 				@Override
 				public void handle(ActionEvent arg0) {
+					try {
+						FileOutputStream fileOut = new FileOutputStream("saves/"+"sauvegarde");
+						System.out.println("saved !");
+						ObjectOutputStream out = new ObjectOutputStream(fileOut);
+						out.writeObject(taskList);
+						out.close();
+						fileOut.close();
+						
+						System.out.println("taskList : "+taskList.toString());
+					}catch (IOException i){
+						 i.printStackTrace();
+					}
+					
 					System.exit(0);
 				}
 				
@@ -384,7 +450,7 @@ public class Main extends Application {
 			cercle.setStrokeWidth(3);
 			cercle.setStroke(Paint.valueOf("black"));
 			
-			Line minuteTick = new Line(); 						//nouvelle ligne qui part du centre du cercle(200)
+									//nouvelle ligne qui part du centre du cercle(200)
 			minuteTick.setStartX(/*200.0*/-60);
 			minuteTick.setStartY(/*200.0*/-22);
 			minuteTick.setEndX(/*200.0*/-60);
@@ -443,8 +509,8 @@ public class Main extends Application {
 				@Override
 				public void onChanged(Change<? extends String> c) {
 					System.out.println("T : "+c.getList().toString().substring(1,c.getList().toString().length()-1));
-					System.out.println("T : "+taskListNames.size());
-
+					System.out.println("tasklListName size : "+taskListNames.size());
+					System.out.println("taskList : "+taskList.toString());
 					//System.out.println(taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))));
 
 					/*le pb de suppression est ici*/ObservableList<String> subListElement = FXCollections.observableArrayList(taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))).getSubtaskNames());
@@ -505,6 +571,15 @@ public class Main extends Application {
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
+		
+
+		
+		
+		
+		
+		
+		
+		
 	}
 	
 	

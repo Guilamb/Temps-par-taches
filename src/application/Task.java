@@ -1,12 +1,13 @@
 package application;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-public class Task {
+public class Task implements Serializable{
 	
 	private static int idIterator = 0;
 	private final int ID = idIterator;
@@ -93,9 +94,7 @@ public class Task {
 	public void setDureeEnMinutes(int dureeEnMinutes) {
 		this.dureeEnMinutes = dureeEnMinutes;
 	}
-	public void saveTaskDuration(){
-		//TODO à faire, avec une serialization
-	}
+
 	@Override
 	public String toString() {
 		return "Task [ID=" + ID + ", dateDebut=" + dateDebut + ", description=" + description + ", statut=" + statut

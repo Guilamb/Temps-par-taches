@@ -11,7 +11,11 @@ public class Chrono extends TimerTask {
 	private static boolean on = false;
 	private String sauvegarde;
 	private TimerNumeric timer;
-
+	private Task selectedTask;
+	
+	public Chrono(Task selectedTask) {
+		this.selectedTask = selectedTask;
+	}
 
 
 	public void setOn() {
@@ -20,6 +24,7 @@ public class Chrono extends TimerTask {
 	}
 	public void setOff() {
 		Chrono.on = false;
+		selectedTask.setDureeEnMinutes(nbMinutes+1);
 	}
 	public int getTemps() {
 		return Integer.parseInt(sauvegarde)+nbMinutes;
