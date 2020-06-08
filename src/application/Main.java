@@ -1,8 +1,10 @@
 package application;
 	
 
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -10,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Timer;
 
+import javafx.animation.Animation;
 import javafx.animation.RotateTransition;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -67,15 +70,10 @@ import javafx.scene.transform.Translate;
  	
  	
  	
+ 	-horloge / animation à configurer, il faut remettre l'horloge à 0
+ 	-pb calcul du temps passé sur les tâches
  	-pb dans String miseEnForme() : avec le texte pkmn, il marche plus
- 	-pb dans le onChange quand on supprime task
- 	-suppression de subtask
- 	-recharger la Serialization
- 	-Remplir la popup aide
- 	-horloge / animation à configurer, il faut sauvegarder les temps
- 	-probleme de numerotation automatique des sous taches
- 	-voir si on peut utiliser le system tray
- 
+
  
  
  */
@@ -91,17 +89,34 @@ public class Main extends Application {
 	
 	private static final int NB_CHAR_MAX_TEXT_AREA = 20;
 	private Task selectedTask = new Task();
+	private Subtask selectedSubtask = new Subtask();
 	private Chrono chrono = new Chrono(selectedTask);
 	private Timer chronometre = new Timer();
 	private Line minuteTick = new Line(); 
-	private boolean sublistChange = false; 		//permet de ne pas compter le depart de sublist vers list mais juste quand on clique sur sublist pas quand on change de liste
-	private List<Task> taskList = new ArrayList<Task>();
+	private Line hourTack = new Line(); 						//nouvelle ligne qui part du centre du cercle(200)
+	private Circle cercle = new Circle();						//cercle de centre 200
+	private Rectangle rectangle = new Rectangle();
+
 	
+	private boolean sublistChange = false; 						//permet de ne pas compter le depart de sublist vers list mais juste quand on clique sur sublist pas quand on change de liste
+	private boolean listChange = false;
+	private List<Task> taskList = new ArrayList<Task>();
+	private ObservableList<String> subListElement;
+
 	
 	public void start(Stage primaryStage) {
 		try {
 			
-			System.out.println("taskList : "+taskList.toString());		
+			try {
+				FileInputStream fileIn = new FileInputStream("saves/"+"sauvegarde");
+		         ObjectInputStream in = new ObjectInputStream(fileIn);
+		         taskList =  (List<Task>) in.readObject();
+		         in.close();
+		         fileIn.close();
+				
+			}catch (IOException e) {
+				System.out.println("no save found");
+			}
 			
 			
 		
@@ -114,11 +129,16 @@ public class Main extends Application {
 			
 			Popup taskCreationWindow = new Popup();taskCreationWindow.setX(800); taskCreationWindow.setY(400);
 			Stage popUpStage = new Stage();
-			Label popUpTitle = new Label("New Task");popUpTitle.setFont(Font.font("System", 32));popUpTitle.setLayoutX(7);popUpTitle.setLayoutY(8);
 			Label popUpTaskName = new Label("Nom de la Task");popUpTaskName.setLayoutX(14);popUpTaskName.setLayoutY(79);popUpTaskName.setPrefSize(101, 16);
 			Label popUpDate = new Label("Date : JJ : MM : AAAA");popUpDate.setLayoutX(14);popUpDate.setLayoutY(148);popUpDate.setPrefSize(161, 16);
 			Label popUpDescription = new Label("Description");popUpDescription.setLayoutX(14);popUpDescription.setLayoutY(226);
 			TextField nomTaskInput = new TextField();nomTaskInput.setPrefSize(190, 26);nomTaskInput.setLayoutX(5);nomTaskInput.setLayoutY(105);
+			Label popUpTitle = new Label();popUpTitle.setFont(Font.font("System", 32));popUpTitle.setLayoutX(7);popUpTitle.setLayoutY(8);
+
+			
+			TextArea descriptionInput = new TextArea();descriptionInput.setPrefSize(289, 109);descriptionInput.setLayoutX(14);descriptionInput.setLayoutY(251);  
+			Label warningNbCharacteres = new Label("200 charactères max.");warningNbCharacteres.setTextFill(Paint.valueOf("#a84040"));warningNbCharacteres.setLayoutX(14);warningNbCharacteres.setLayoutY(365);
+
 			Spinner<Integer> jours = new Spinner<Integer>(01,31,LocalDate.now().getDayOfMonth());jours.setPrefSize(61, 26);jours.setLayoutX(10);jours.setLayoutY(181);jours.setEditable(true);
 			Spinner<Integer> mois = new Spinner<Integer>(01,12,LocalDate.now().getMonthValue());mois.setPrefSize(56, 26);mois.setLayoutX(90);mois.setLayoutY(181);mois.setEditable(true);
 			Spinner<Integer> annees = new Spinner<Integer>(2020,2100,LocalDate.now().getDayOfYear());annees.setPrefSize(108, 26);annees.setLayoutX(168);annees.setLayoutY(181);annees.setEditable(true);
@@ -126,37 +146,50 @@ public class Main extends Application {
 			Popup editDescriptionWindow = new Popup();editDescriptionWindow.setX(800); editDescriptionWindow.setY(400);
 			Stage popUpDescriptionStage = new Stage();
 			AnchorPane editDescriptionPane = new AnchorPane();
-			TextArea descriptionInput = new TextArea();descriptionInput.setPrefSize(289, 109);descriptionInput.setLayoutX(14);descriptionInput.setLayoutY(251);
+			TextArea editDescriptionInput = new TextArea();editDescriptionInput.setPrefSize(289, 109);editDescriptionInput.setLayoutX(14);editDescriptionInput.setLayoutY(251); 
+			Label editionPopUpDescription = new Label("Description");editionPopUpDescription.setLayoutX(14);editionPopUpDescription.setLayoutY(226);
 			SplitMenuButton parentsList = new SplitMenuButton();
 			Label descriptionText = new Label("kind of test"); descriptionText.alignmentProperty().set(Pos.TOP_LEFT);
-			Label warningNbCharacteres = new Label("200 charactères max.");warningNbCharacteres.setTextFill(Paint.valueOf("#a84040"));warningNbCharacteres.setLayoutX(14);warningNbCharacteres.setLayoutY(365);
+			Label editionWarningNbCharacteres = new Label("200 charactères max.");editionWarningNbCharacteres.setTextFill(Paint.valueOf("#a84040"));editionWarningNbCharacteres.setLayoutX(14);editionWarningNbCharacteres.setLayoutY(365);
 			Label popUpTitleDescription = new Label(selectedTask.getName());popUpTitleDescription.setFont(Font.font("System", 32));popUpTitleDescription.setLayoutX(7);popUpTitleDescription.setLayoutY(8);
-
 			
+			
+			
+			/*
 			
 			Task essais = new Task("task 1",LocalDate.now(),"test des taches",Etats.enCours);
 			Task essais2 = new Task("task main test",LocalDate.now(),"test des taches",Etats.enCours);
 			Subtask sousTache1 = new Subtask(LocalDate.now());
 			
+			taskList.add(essais);
+			taskList.add(essais2);
+			essais.addSubtask(sousTache1);
+			
+			*/
+			
 			TimerNumeric timerNumeric = new TimerNumeric(chrono.getMinutes()+"");
 			Node timer = timerNumeric.getTimer();
 			timer.setLayoutX(0);timer.setLayoutY(288);
 			
-			taskList.add(essais);
-			taskList.add(essais2);
-			essais.addSubtask(sousTache1);
+			Button startStop = new Button("Start/Stop");startStop.setLayoutX(22);startStop.setLayoutY(400);startStop.setPrefSize(160, 40);
+
 			
 			List<String> taskListNames = new ArrayList<String>();
 			for(Task t : taskList) {
 				taskListNames.add(t.getName());
 			}
 			List<String> subtaskListNames = new ArrayList<String>();
+			for(Subtask s : selectedTask.getSubtask()) {
+				subtaskListNames.add(s.getName());
+			}
 			
 			ObservableList<String> listElement = FXCollections.observableArrayList(taskListNames);
+			
+			
 			ListView<String> list = new ListView<String>(listElement);
 			ListView<String> subList = new ListView<String>();
 			
-			System.out.println("taskList : "+taskList.toString());
+			
 			
 			RotateTransition  rotationMinutes = new RotateTransition();
 			RotateTransition  rotationHours = new RotateTransition();
@@ -175,7 +208,8 @@ public class Main extends Application {
 						out.writeObject(taskList);
 						out.close();
 						fileOut.close();
-						System.out.println("taskList : "+taskList.toString());
+						System.exit(0); 	//le programme continue de tourner en arrière plan quand on clique sur la croix
+						
 						
 					}catch (IOException i){
 						 i.printStackTrace();
@@ -209,31 +243,67 @@ public class Main extends Application {
 
 				@Override
 				public void handle(ActionEvent arg0) {
-
+					if(!selectedTask.getName().equals("tâche N°0") ) {
 					if(chrono.isOn()) {
 						chrono.setOff(); //va eteindre le chrono et enregistrer le temps de fonctionnement.
 						rotationMinutes.stop();
 						rotationHours.stop();
+											System.out.println("eteint");
+							if(selectedSubtask.getName() != null && selectedSubtask.isEnCours()) { //si une sous tache est selectionne on eteint son chrono et on rajoute son chrono
+								
+								selectedSubtask.setDureeEnMinutes(chrono.getMinutes());
+								selectedSubtask.setEnCours(false);
+								
+								selectedTask.setDureeEnMinutes(chrono.getMinutes());
+								selectedTask.setEnCours(false);
+							}else {
+								
+								selectedTask.setDureeEnMinutes(chrono.getMinutes());
+								taskList.get(taskList.indexOf(selectedTask)).setDureeEnMinutes(chrono.getMinutes());
+								//mettre la meme chose pour la tasklist
+							}
+						
 						
 						
 						
 						System.out.println(selectedTask.getDureeEnMinutes()+" min");
 						//si il ya un timer ON, on enregistre le temps et on le met off
-						//TODO sauvegarder le temps int nbMinutes de la TASK
+						
 					}
-					
 					else if(!chrono.isOn()) {
 						//on prends la task selectionnée
 						//on met son timer
-						selectedTask.setEnCours(true);
-						chrono = new Chrono(selectedTask);							// on crée un nv chrono pour eviter d'avoir un pb quand on schedule
-						chrono.addTimer(timerNumeric);
-						chrono.setOn(); 								// on allume le nouveau chrono
-						chronometre.schedule(chrono, 0,1000/*36000*/);	//on programme la TimerTask chrono, avec un delais de 0 millisecondes et pour une durée de 1000 milisecondes  
-						rotationMinutes.play();
-						rotationHours.play();
+							
 						
-					}}
+							System.out.println("demarer");
+							if(selectedSubtask != null && selectedTask.getSubtask().contains(selectedSubtask)) { //si une sous tache est selectionnee et qu'elle appartient à la tache actuelle(eviter de demarer une sous tache d'une autre tache encore selected), on met le chrono on
+								selectedSubtask.setEnCours(true);
+								chrono = new Chrono(selectedSubtask);	// on crée un nv chrono pour eviter d'avoir un pb quand on schedule
+
+							}else {
+								selectedTask.setEnCours(true);
+								chrono = new Chrono(selectedTask);		// on crée un nv chrono pour eviter d'avoir un pb quand on schedule
+
+							}
+							
+							chrono.addTimer(timerNumeric);
+							chrono.setOn(); 								// on allume le nouveau chrono
+							chronometre.schedule(chrono, 0,1000/*36000*/);	//on programme la TimerTask chrono, avec un delais de 0 millisecondes et pour une durée de 1000 milisecondes   
+							rotationMinutes.play();
+							rotationHours.play();
+							
+							
+						}
+							
+						}else{
+							Alert informationAlert = new Alert(AlertType.WARNING);
+							informationAlert.setTitle("Veuillez selectionner une tâche");
+							informationAlert.setContentText("Merci de selectionner une tâche avant"+'\n' +"de demarer un chrono");
+							informationAlert.showAndWait();
+						}
+
+						
+					}
 			};
 
 			
@@ -247,7 +317,22 @@ public class Main extends Application {
 					if(newTaskPane.getChildren().contains(parentsList)) {
 						for(Task t : taskList) {
 							if(t.getName() == parentsList.getText()) {
-								t.addSubtask(new Subtask(nomTaskInput.getText(),LocalDate.of(annees.getValue(), mois.getValue(), jours.getValue()),miseEnForme(descriptionInput.getText())));  
+								Subtask tmp = new Subtask(nomTaskInput.getText(),LocalDate.of(annees.getValue(), mois.getValue(), jours.getValue()),miseEnForme(descriptionInput.getText()));
+								
+								t.addSubtask(tmp);
+								tmp.setName(nomTaskInput.getText());  
+								tmp.setDateDebut(LocalDate.of(annees.getValue(), mois.getValue(), jours.getValue()));  
+								tmp.setDescription(miseEnForme(descriptionInput.getText()));
+								
+								subtaskListNames.clear();
+								for(Subtask s : selectedTask.getSubtask()) {
+									subtaskListNames.add(s.getName());
+								}
+								subListElement = FXCollections.observableArrayList(subtaskListNames);
+								subList.setItems(subListElement);
+								System.out.println("nom :"+ t.getSubtaskNames());
+								
+						
 							}
 						}
 					}else {
@@ -255,7 +340,7 @@ public class Main extends Application {
 						list.getItems().add(nomTaskInput.getText());
 						taskListNames.add(nomTaskInput.getText());
 						addToParentsList(taskList, parentsList);
-						System.out.println("taskList : "+taskList.toString());
+
 					}
 					System.out.println();
 					
@@ -272,7 +357,7 @@ public class Main extends Application {
 			
 			Button popUpValiderDescription = new Button("valider");popUpValiderDescription.setPrefSize(64, 26);popUpValiderDescription.setLayoutX(333);popUpValiderDescription.setLayoutY(360);popUpValiderDescription.addEventHandler(ActionEvent.ACTION, new EventHandler<ActionEvent>() {
 				public void handle(ActionEvent arg0) {
-					selectedTask.setDescription(miseEnForme(descriptionInput.getText()));
+					selectedTask.setDescription(miseEnForme(editDescriptionInput.getText()));
 					editDescriptionWindow.hide();
 				}
 			});
@@ -280,13 +365,16 @@ public class Main extends Application {
 				public void handle(ActionEvent arg0) {
 					editDescriptionWindow.hide();
 				}});
-			Button startStop = new Button("Start/Stop");startStop.setLayoutX(22);startStop.setLayoutY(400);startStop.setPrefSize(160, 40);startStop.addEventHandler(ActionEvent.ACTION, chronoEvent);
+			
+			//on ajoute l'event au boutton 
+			startStop.addEventHandler(ActionEvent.ACTION, chronoEvent);
 			
 			
-			newTaskPane.getChildren().addAll(popUpTaskName,popUpTitle,nomTaskInput,popUpDate,jours,mois,annees,popUpDescription,descriptionInput,popUpValider,popUpAnnuler,warningNbCharacteres);
+			
+			newTaskPane.getChildren().addAll(popUpTaskName,nomTaskInput,popUpDate,jours,mois,annees,popUpDescription,descriptionInput,popUpValider,popUpAnnuler,warningNbCharacteres);
 			newTaskPane.setPrefSize(500, 400); 
 			
-			editDescriptionPane.getChildren().addAll(popUpTitleDescription,popUpDescription,descriptionInput,popUpValiderDescription,popUpAnnulerDescription,warningNbCharacteres);
+			editDescriptionPane.getChildren().addAll(popUpTitleDescription,editionPopUpDescription,editDescriptionInput,popUpValiderDescription,popUpAnnulerDescription,editionWarningNbCharacteres);
 			editDescriptionPane.setPrefSize(500, 400);
 			
 			Scene popUpScene = new Scene(newTaskPane,500,400);
@@ -308,8 +396,8 @@ public class Main extends Application {
 			MenuItem newTask = new MenuItem("nouvelle Task");
 			MenuItem newSubtask = new MenuItem("nouvelle subTask");
 			file.getItems().addAll(newTask,newSubtask);
-			newTask.addEventHandler(ActionEvent.ACTION, new PopUpGenerator(primaryStage, taskCreationWindow,newTaskPane,parentsList,false));
-			newSubtask.addEventHandler(ActionEvent.ACTION, new PopUpGenerator(primaryStage, taskCreationWindow,newTaskPane,parentsList,true));
+			newTask.addEventHandler(ActionEvent.ACTION, new PopUpGenerator(primaryStage, taskCreationWindow,newTaskPane,parentsList,popUpTitle,false));
+			newSubtask.addEventHandler(ActionEvent.ACTION, new PopUpGenerator(primaryStage, taskCreationWindow,newTaskPane,parentsList,popUpTitle,true));
 			
 			
 			Menu edition = new Menu("Edition");
@@ -350,19 +438,66 @@ public class Main extends Application {
 					Optional<ButtonType> result = deleteAlert.showAndWait();
 					if (result.get() == ButtonType.OK) {
 						//retirer de la liste, listview listview des noms
-						final int emplacementElementSupprimer = taskListNames.indexOf(selectedTask.getName());
-						taskList.remove(emplacementElementSupprimer); //vu que c'est le bordel l.427, une erreur est causé ici
-						listElement.remove(emplacementElementSupprimer);	
-						taskListNames.remove(emplacementElementSupprimer);//la taille de taskListNames passe de 1 à 2 en bas alors qu'il n'y a que 1 element dedans
+						try {
+							final int emplacementElementSupprimer = taskListNames.indexOf(selectedTask.getName());
+							taskList.remove(emplacementElementSupprimer); //vu que c'est le bordel l.427, une erreur est causé ici
+							listElement.remove(emplacementElementSupprimer);	
+							taskListNames.remove(emplacementElementSupprimer);//la taille de taskListNames passe de 1 à 2 en bas alors qu'il n'y a que 1 element dedans
+							System.out.println(taskListNames.size());
+						}catch (IndexOutOfBoundsException i) {
+							Alert deleteError = new Alert(AlertType.ERROR);
+							deleteError.setTitle("Il doit y avoir au moins 1 task");
+							deleteError.setContentText("Pour supprimer cette Task,"+'\n'+"merci de bien vouloir en créer une nouvelle avant");
+							Optional<ButtonType> resultat = deleteError.showAndWait();
+						}
 						
-						System.out.println("taskList : "+taskList.toString());
-						System.out.println(taskListNames.size());
-					}else {
+						}else {
 							System.out.println(taskListNames);
 					}
 						
 				}
 				
+			});
+			
+			
+			deleteSubTask.addEventHandler(ActionEvent.ACTION, new EventHandler<ActionEvent>() {
+
+				@Override
+				public void handle(ActionEvent arg0) {
+					Alert subatskDeleteAlert = new Alert(AlertType.CONFIRMATION);
+					subatskDeleteAlert.setTitle("Supprimer subtask ?");
+					subatskDeleteAlert.setContentText("Êtes vous sûr de vouloir supprimer la subtask"+'\n'+selectedTask.getName()+" ?");
+					Optional<ButtonType> result = subatskDeleteAlert.showAndWait();
+					if (result.get() == ButtonType.OK) {
+						//mettre selectedsubtask
+						//remplacer taskListNames par les subtasks en somme changer tout les removes
+						
+							
+							final int emplacementElementSupprimer = selectedTask.getSubtaskNames().indexOf(selectedSubtask.getName());
+							System.out.println(subListElement);
+							selectedTask.getSubtask().remove(emplacementElementSupprimer);	
+							subListElement.remove(emplacementElementSupprimer);
+							
+							
+							/*le pb de suppression est ici*/
+							subListElement = FXCollections.observableArrayList(taskList.get(taskListNames.indexOf(selectedTask.getName())).getSubtaskNames());
+							subList.setItems(subListElement);
+							descriptionText.setText(selectedSubtask.getDescription());
+							popUpTitleDescription.setText(selectedTask.getName());//le nom de la task est enregistré ici, mais le label est deja crée  
+							
+							subtaskListNames.clear();
+							for(Subtask s : selectedTask.getSubtask()) {
+								subtaskListNames.add(s.getName());
+							}
+							subListElement = FXCollections.observableArrayList(subtaskListNames);
+							
+						
+						}else {
+							System.out.println(taskListNames);
+					}
+						
+				}
+		
 			});
 			
 			
@@ -376,7 +511,7 @@ public class Main extends Application {
 					Alert alert = new Alert(AlertType.INFORMATION);
 					alert.setTitle("Help dialog");
 					alert.setHeaderText(null);
-					alert.setContentText("- Créer une Task (file > new Task)"+'\n'+"- Supprimer une Task (selectionner la task puis : edition > supprimer task)"+'\n'+"- Demmarer ou stopper un chrono (boutton inférieur droit ou edition > start/stop chrono)");
+					alert.setContentText("Go read the text file Readme.txt for more information");
 
 					alert.showAndWait();
 					
@@ -400,7 +535,7 @@ public class Main extends Application {
 						out.close();
 						fileOut.close();
 						
-						System.out.println("taskList : "+taskList.toString());
+						
 					}catch (IOException i){
 						 i.printStackTrace();
 					}
@@ -421,7 +556,6 @@ public class Main extends Application {
 			
 			
 			
-			Rectangle rectangle = new Rectangle();
 			rectangle.setHeight(200);
 			rectangle.setWidth(200);
 			rectangle.setLayoutY(60);
@@ -439,7 +573,6 @@ public class Main extends Application {
 			
 			
 			
-			Circle cercle = new Circle();						//cercle de centre 200
 			cercle.setCenterX(/*200.0f*/0);
 			cercle.setCenterY(/*200.0f*/0);
 			cercle.setLayoutX(100);
@@ -463,7 +596,6 @@ public class Main extends Application {
 
 
 
-			Line hourTack = new Line(); 						//nouvelle ligne qui part du centre du cercle(200)
 			hourTack.setStartX(/*200.0*/-60);
 			hourTack.setStartY(/*200.0*/-22);
 			hourTack.setEndX(/*200.0*/-60);
@@ -479,6 +611,7 @@ public class Main extends Application {
 			rotationMinutes.setToAngle(360);					//angle de rotation
 			rotationMinutes.setNode(minuteTick);
 			rotationMinutes.setDuration(Duration.millis(60000));//le temps d'attente en millisecondes
+			
 			
 			movePivot(hourTack, 0, /*50*/33);					//set du nouveau point de rotation
 			rotationHours.setToAngle(360);						//angle de rotation
@@ -508,15 +641,35 @@ public class Main extends Application {
 
 				@Override
 				public void onChanged(Change<? extends String> c) {
-					System.out.println("T : "+c.getList().toString().substring(1,c.getList().toString().length()-1));
-					System.out.println("tasklListName size : "+taskListNames.size());
-					System.out.println("taskList : "+taskList.toString());
-					//System.out.println(taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))));
-
-					/*le pb de suppression est ici*/ObservableList<String> subListElement = FXCollections.observableArrayList(taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))).getSubtaskNames());
-					subList.setItems(subListElement);
-					descriptionText.setText(taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))).getDescription());
-					selectedTask = taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))); 
+					listChange = true;
+					sublistChange = false;
+					if(listChange) { //si la liste change, la sous liste ne change pas
+						
+						
+						
+						/*le pb de suppression est ici*/subListElement = FXCollections.observableArrayList(taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))).getSubtaskNames());
+						subList.setItems(subListElement);
+						descriptionText.setText(taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))).getDescription());
+						selectedTask = taskList.get(taskListNames.indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))); 
+						popUpTitleDescription.setText(selectedTask.getName());//le nom de la task est enregistré ici, mais le label est deja crée  
+						
+						subtaskListNames.clear();
+						for(Subtask s : selectedTask.getSubtask()) {
+							subtaskListNames.add(s.getName());
+						}
+						subListElement = FXCollections.observableArrayList(subtaskListNames);
+						
+						if(!selectedTask.isEnCours()) {
+							timerNumeric.setText(String.valueOf(selectedTask.getDureeEnMinutes()));
+							System.out.println(String.valueOf(selectedTask.getDureeEnMinutes()));
+							System.out.println(chrono.getTimer());
+							
+	
+	
+						}
+						
+						
+					}
 				}
 				
 			});
@@ -527,14 +680,37 @@ public class Main extends Application {
 
 				@Override
 				public void onChanged(Change<? extends String> c) {
-					if(!sublistChange) {
+					try {
+						listChange = false;
 						sublistChange = true;
-					//System.out.println(c.getList().toString().substring(1,c.getList().toString().length()-1));
-					descriptionText.setText(selectedTask.getSubtaskNames().get(selectedTask.getSubtaskNames().indexOf(c.getList().toString().substring(1,c.getList().toString().length()-1))).toString());
-				
-					}else {
-						sublistChange = false;
+						if(sublistChange) {
+							
+							
+						String cFormate = c.getList().toString().substring(1,c.getList().toString().length()-1);
+						selectedSubtask = selectedTask.getSubtask().get(selectedTask.getSubtaskNames().indexOf(cFormate));
+						
+						
+						//description text doit aller dans le valider, on set le text de descrpition en recup le selectedSubTask
+						descriptionText.setText(selectedSubtask.getDescription());
+						
+						//System.out.println("subtask selected : "+selectedSubtask.getName());
+						
+						if(!selectedSubtask.isEnCours()) {
+							timerNumeric.setText(String.valueOf(selectedSubtask.getDureeEnMinutes()));
+							System.out.println("okk");
+							System.out.println(String.valueOf(selectedSubtask.getDureeEnMinutes()));
+							System.out.println(chrono.getTimer());
+						}
+						
+						}
+						
+						
+					}catch(IndexOutOfBoundsException e) { //supprimer une subTask cause une indexOutOfBound exception du au raccourcicement du nombre de subtask
+						System.out.println("subtask deleted");
 					}
+					
+					
+					
 				}
 				
 			});

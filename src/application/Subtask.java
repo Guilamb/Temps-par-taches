@@ -8,7 +8,7 @@ public class Subtask extends Task{
 	private LocalDate dateDebut;
 	private String description;
 	private Etats statut;
-	private boolean enCours = false;
+	private boolean enCours = false; //si son chrono est allumé
 	private int father;
 	private String name;
 	
@@ -75,6 +75,15 @@ public class Subtask extends Task{
 		this.father = father;
 	}
 
+	public String getName() {
+		return this.name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public void setDateDebut(LocalDate dateDebut) {
+		this.dateDebut = dateDebut;
+	}
 	@Override
 	public String toString() {
 		return "Subtask [ID=" + ID + ", dateDebut=" + super.getDateDebut() + ", description=" + super.getDescription() + ", statut=" + super.getStatut()+ ", enCours=" + super.isEnCours() + ", FATHER=" + this.father + "]";

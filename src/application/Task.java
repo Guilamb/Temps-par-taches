@@ -3,8 +3,6 @@ package application;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 public class Task implements Serializable{
@@ -14,11 +12,10 @@ public class Task implements Serializable{
 	private LocalDate dateDebut;
 	private String description;
 	private Etats statut;
-	private boolean enCours = false;
+	private boolean enCours = false; //si son chrono est allumé
 	private ArrayList<Subtask> subtasks = new ArrayList<Subtask>();
 	private final int SIZE = 10; //nb maximum de sous taches
-	private List<Subtask> data;
-	private int dureeEnMinutes;
+	private int dureeEnMinutes = 0;
 	private String name;
 
 	
@@ -58,7 +55,7 @@ public class Task implements Serializable{
 	}
 	
 	public String getName() {
-		return name;
+		return this.name;
 	}
 	public void setName(String name) {
 		this.name = name;
@@ -92,7 +89,7 @@ public class Task implements Serializable{
 		return dureeEnMinutes;
 	}
 	public void setDureeEnMinutes(int dureeEnMinutes) {
-		this.dureeEnMinutes = dureeEnMinutes;
+		this.dureeEnMinutes += dureeEnMinutes;
 	}
 
 	@Override
@@ -100,16 +97,17 @@ public class Task implements Serializable{
 		return "Task [ID=" + ID + ", dateDebut=" + dateDebut + ", description=" + description + ", statut=" + statut
 				+ ", enCours=" + enCours + ", subtasks=" + subtasks.toString() + "]";
 	}
-	public List getSubtask() {
+	public List<Subtask> getSubtask() {
 		return subtasks;
 	}
-	public List getSubtaskNames() {
+	public List<String> getSubtaskNames() {
 		List<String> tmp = new ArrayList<String>();
 		for(Subtask t : subtasks) {
 			tmp.add(t.getName());
 		}
 		return tmp;
 	}
+
 	
 	public void addSubtask(Subtask task) {
 		this.subtasks.add(task);
