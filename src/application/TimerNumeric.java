@@ -54,7 +54,15 @@ public class TimerNumeric {
 
 		       @Override
 		       public void handle(ActionEvent event) {
-		           label.setText(/*LocalTime.now()*/text + " min" /*.format(formatter).toString()*/);
+		    	   int heure = 0;
+		    	   int minutes = 0;
+		    	   if(Integer.parseInt(text) <60) label.setText(/*LocalTime.now()*/text + " min" /*.format(formatter).toString()*/);
+		    	   else if(Integer.parseInt(text)>60) {
+		    		    heure = Integer.parseInt(text)/60 ;
+		    		    minutes = Integer.parseInt(text)%60;
+		    		   label.setText(/*LocalTime.now()*/heure + " h "+minutes/*.format(formatter).toString()*/);
+		    	   }
+		    	   
 		       }}));
 		
 		timer.setCycleCount(Timeline.INDEFINITE);//timer qui ne s'arrete jamais
